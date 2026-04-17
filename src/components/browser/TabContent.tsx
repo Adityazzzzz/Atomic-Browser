@@ -8,14 +8,16 @@ import { useState, useEffect } from 'react';
 function IframeWrapper({ url, isActive }: { url: string; isActive: boolean }) {
   const [loading, setLoading] = useState(true);
 
-  // When url changes to a totally different one, we might want to trigger loading
-  // For standard browser experience, iframe doesn't natively expose loading state accurately across origins
-  // This is a rough estimation for UX
+  // We rely strictly on the native DOM load event for maximum speed
+  // as artificial UX delays make the browser 'feel' heavy.
   useEffect(() => {
     setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 800); // Fake load time
-    return () => clearTimeout(timer);
   }, [url]);
+
+  // Determine if it's an internal Next.js route or an external website
+  const frameSrc = url.startsWith('/') 
+    ? url 
+    : `/api/proxy?url=${encodeURIComponent(url)}`;
 
   return (
     <div className={cn(
@@ -36,7 +38,7 @@ function IframeWrapper({ url, isActive }: { url: string; isActive: boolean }) {
         We add sandbox attributes to restrict what the iframe can do.
       */}
       <iframe
-        src={`/api/proxy?url=${encodeURIComponent(url)}`}
+        src={frameSrc}
         className="w-full h-full border-0 bg-white"
         sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
         title="Viewport"

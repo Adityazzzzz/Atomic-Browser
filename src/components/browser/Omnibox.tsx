@@ -12,7 +12,12 @@ export function Omnibox() {
     if (activeTab) {
       // Don't override if user is typing
       if (document.activeElement !== document.getElementById('omnibox-input')) {
-        setValue(activeTab.url);
+        if (activeTab.url.startsWith('/search?q=')) {
+          const searchParams = new URLSearchParams(activeTab.url.split('?')[1]);
+          setValue(searchParams.get('q') || activeTab.url);
+        } else {
+          setValue(activeTab.url);
+        }
       }
     }
   }, [activeTab?.url]);
@@ -26,11 +31,14 @@ export function Omnibox() {
     const isUrl = /^[^\s]+\.[^\s]+$/.test(finalUrl) || finalUrl.startsWith('http://') || finalUrl.startsWith('https://') || finalUrl.startsWith('localhost:');
     
     if (isUrl) {
-      if (!finalUrl.startsWith('http')) {
+      if (!finalUrl.startsWith('http') && !finalUrl.startsWith('localhost') && !finalUrl.startsWith('/')) {
         finalUrl = `https://${finalUrl}`;
       }
+      if (finalUrl.startsWith('localhost')) {
+          finalUrl = `http://${finalUrl}`;
+      }
     } else {
-      finalUrl = `https://www.google.com/search?q=${encodeURIComponent(finalUrl)}`;
+      finalUrl = `/search?q=${encodeURIComponent(finalUrl)}`;
     }
 
     updateTabUrl(activeTabId, finalUrl);

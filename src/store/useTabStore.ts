@@ -20,8 +20,8 @@ interface TabStore {
   navigateForward: (id: string) => void;
 }
 
-const createNewTab = (url: string = 'https://example.com'): Tab => ({
-  id: Math.random().toString(36).substring(2, 9),
+const createNewTab = (url: string = 'https://example.com', idOverride?: string): Tab => ({
+  id: idOverride || Math.random().toString(36).substring(2, 9),
   url,
   title: 'New Tab',
   favicon: '',
@@ -30,8 +30,8 @@ const createNewTab = (url: string = 'https://example.com'): Tab => ({
 });
 
 export const useTabStore = create<TabStore>((set) => ({
-  tabs: [createNewTab()],
-  activeTabId: null,
+  tabs: [createNewTab('https://example.com', 'default-tab-1')],
+  activeTabId: 'default-tab-1',
 
   addTab: (url) => set((state) => {
     const newTab = createNewTab(url);

@@ -7,6 +7,9 @@ const IGNORED_HEADERS = [
   'x-frame-options',
   'strict-transport-security',
   'x-content-type-options',
+  'content-encoding',
+  'content-length',
+  'transfer-encoding',
 ];
 
 const PROXY_SCRIPT = `
@@ -53,7 +56,7 @@ export async function GET(req: NextRequest) {
     const headers = new Headers();
     req.headers.forEach((value, key) => {
       // Avoid sending local host and forbidden headers
-      if (key !== 'host' && key !== 'origin' && key !== 'referer' && key !== 'cookie') {
+      if (key !== 'host' && key !== 'origin' && key !== 'referer' && key !== 'cookie' && key !== 'accept-encoding') {
         headers.set(key, value);
       }
     });
@@ -86,6 +89,9 @@ export async function GET(req: NextRequest) {
 
       // 2. Inject standard fetch/xhr patch to route dynamic backend API queries
       $('head').prepend(PROXY_SCRIPT);
+
+      // Force display to counter Javascript frame-busters that set display:none
+      $('head').append('<style> html, body { display: block !important; visibility: visible !important; opacity: 1 !important; } </style>');
 
       // 3. (Optional deeper rewrite) We modify top-level navigation links 
       //    to push through the proxy, so clicking inside the iframe doesn't "break out".

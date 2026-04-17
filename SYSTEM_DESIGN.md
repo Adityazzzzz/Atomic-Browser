@@ -25,3 +25,8 @@ VibeBrowser is a high-performance Next.js remote browser. This document outlines
 ## 5. Persistence Layer & Caching
 - **Zustand Middleware**: Utilizes `zustand/persist` hooked into standard browser `LocalStorage`.
 - Stores `tabs[]`, the continuous `historyStack[]`, and universal `globalHistory` trackers securely on the client machine to safeguard session progression over manual hard reloads without requiring an isolated PostgreSQL database.
+
+## 6. Advanced Native Mechanics
+- **Internal Adblocking**: Runs a custom-tailored exclusion loop iterating over standard `cheerio` selectors identifying ads and trackers (e.g., `doubleclick`, `.ad-container`). It purges these DOM sequences automatically on the backend node before feeding them to the Next client instance, securing CPU performance and ad-reduction simultaneously.
+- **Native Web Downloads**: Detects `Content-Disposition: attachment` mappings organically. Instead of converting `.zip` or `.pdf` payloads to destructive AST blocks, the backend proxy redirects streaming buffers gracefully down to the OS to mimic Chromium's actual download manager flawlessly.
+- **Vibe AI Extractive NLP**: Implements a 100% free server-sided text-frequency Natural Language processor. Vibe AI intercepts the `<article>` node of any requested proxy domain, calculates mathematical weighting using standard TF-IDF methodologies, and returns a dynamic 3-sentence summary completely isolated off-network securely without relying on paid OpenAI/HuggingFace API environments.

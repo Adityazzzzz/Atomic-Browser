@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
     });
 
     const contentType = response.headers.get('content-type') || '';
+    const disposition = response.headers.get('content-disposition') || '';
     
     const resHeaders = new Headers();
     response.headers.forEach((value, key) => {
@@ -79,6 +80,13 @@ export async function GET(req: NextRequest) {
     // Ensure cross-origin sharing is allowed for the iframe container
     resHeaders.set('Access-Control-Allow-Origin', '*');
 
+    // NATIVE DOWNLOAD MANAGER
+    if (disposition.includes('attachment') || contentType.includes('application/pdf') || contentType.includes('application/zip') || contentType.includes('application/octet-stream')) {
+        const buffer = await response.arrayBuffer();
+        if (disposition) resHeaders.set('content-disposition', disposition);
+        return new NextResponse(buffer, { status: response.status, headers: resHeaders });
+    }
+
     if (contentType.includes('text/html')) {
       const html = await response.text();
       const $ = cheerio.load(html);
@@ -86,6 +94,15 @@ export async function GET(req: NextRequest) {
       // 1. Inject base tag so relative links resolve strictly against original domain
       const baseTag = `<base href="${targetUrl.origin}${targetUrl.pathname}">`;
       $('head').prepend(baseTag);
+
+      // DEEP-ENGINE ADBLOCK & TRACKER FILTER
+      const adSelectors = [
+        'iframe[src*="doubleclick"]', 'iframe[src*="googlesyndication"]',
+        'script[src*="google-analytics"]', 'script[src*="googletagmanager"]',
+        '.ad', '.ads', '.ad-container', '[id^="google_ads"]', '[id*="taboola"]', 
+        '.outbrain', '.advertisement', 'script[src*="tracker"]'
+      ];
+      adSelectors.forEach(selector => $(selector).remove());
 
       // 2. Inject standard fetch/xhr patch to route dynamic backend API queries
       $('head').prepend(PROXY_SCRIPT);

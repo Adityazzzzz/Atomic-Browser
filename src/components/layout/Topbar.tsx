@@ -3,8 +3,8 @@
 import { useTabStore } from '@/store/useTabStore';
 import { Omnibox } from '@/components/browser/Omnibox';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, RotateCw, Home, Plus, X } from 'lucide-react';
-import { motion, Reorder } from 'framer-motion';
+import { ArrowLeft, ArrowRight, RotateCw, Home, Plus, X, Sparkles } from 'lucide-react';
+import { motion, Reorder, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
@@ -41,6 +41,24 @@ export function Topbar() {
   
   const canGoBack = currentIndex > 0;
   const canGoForward = currentIndex < currentTabStack.length - 1;
+
+  const [summaryStr, setSummaryStr] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+
+  const handleSummarize = async () => {
+    if (!activeTab || !activeTab.url) return;
+    setIsSummarizing(true);
+    setSummaryStr(null);
+    try {
+       const res = await fetch(`/api/summarize?url=${encodeURIComponent(activeTab.url)}`);
+       const data = await res.json();
+       setSummaryStr(data.summary || "Failed to generate summary.");
+    } catch(e) {
+       setSummaryStr("API Error: summarize endpoint failed.");
+    } finally {
+       setIsSummarizing(false);
+    }
+  };
 
   return (
     <div className="flex flex-col w-full bg-background/70 backdrop-blur-md border-b shadow-sm z-20 sticky top-0">
@@ -138,7 +156,39 @@ export function Topbar() {
         </div>
 
         <Omnibox />
+
+        <Button 
+           variant="ghost" 
+           size="icon"
+           onClick={handleSummarize}
+           disabled={isSummarizing}
+           className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 shrink-0 ml-1"
+        >
+           <Sparkles className={`w-5 h-5 ${isSummarizing ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
+
+      <AnimatePresence>
+        {summaryStr && (
+           <motion.div 
+             initial={{ opacity: 0, y: -20, scale: 0.95 }}
+             animate={{ opacity: 1, y: 0, scale: 1 }}
+             exit={{ opacity: 0, scale: 0.95 }}
+             className="absolute top-full right-4 mt-2 w-96 p-5 rounded-2xl bg-card border border-indigo-500/30 shadow-2xl z-50 backdrop-blur-xl"
+           >
+             <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-indigo-500">
+                   <Sparkles className="w-4 h-4" />
+                   <h3 className="font-semibold text-sm">Vibe AI Summary</h3>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setSummaryStr(null)} className="h-6 w-6">
+                   <X className="w-3 h-3" />
+                </Button>
+             </div>
+             <p className="text-sm leading-relaxed text-card-foreground font-medium">{summaryStr}</p>
+           </motion.div>
+        )}
+      </AnimatePresence>
       
     </div>
   );

@@ -13,8 +13,10 @@ export interface NetworkLog {
 interface NetworkStore {
     logs: NetworkLog[];
     isOpen: boolean;
+    recentToasts: NetworkLog[];
     
     addLog: (log: Omit<NetworkLog, 'id' | 'timestamp'>) => void;
+    removeToast: (id: string) => void;
     clearLogs: () => void;
     toggleDevTools: () => void;
     setDevToolsOpen: (state: boolean) => void;
@@ -23,6 +25,7 @@ interface NetworkStore {
 export const useNetworkStore = create<NetworkStore>((set) => ({
     logs: [],
     isOpen: false,
+    recentToasts: [],
 
     addLog: (log) => set((state) => {
         const newLog: NetworkLog = { 
@@ -30,9 +33,20 @@ export const useNetworkStore = create<NetworkStore>((set) => ({
             id: Math.random().toString(36).substring(7), 
             timestamp: Date.now() 
         };
-        // Keep logs cleanly optimized at max 200 entries to prevent DOM lag
-        return { logs: [newLog, ...state.logs].slice(0, 200) };
+        
+        // Only push critical payload events to the visual Toast queue, preventing deep asset floods (css/fonts)
+        const isCritical = ['PROXY', 'XHR', 'FETCH', 'SYSTEM', 'NAVIGATION', 'DOC'].includes(newLog.type);
+        const nextToasts = isCritical ? [newLog, ...state.recentToasts].slice(0, 5) : state.recentToasts;
+
+        return { 
+            logs: [newLog, ...state.logs].slice(0, 200),
+            recentToasts: nextToasts
+        };
     }),
+
+    removeToast: (id) => set((state) => ({
+        recentToasts: state.recentToasts.filter(t => t.id !== id)
+    })),
 
     clearLogs: () => set({ logs: [] }),
     toggleDevTools: () => set((state) => ({ isOpen: !state.isOpen })),

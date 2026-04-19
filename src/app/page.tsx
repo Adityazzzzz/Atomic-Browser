@@ -5,6 +5,7 @@ import { SidebarPanel } from "@/components/layout/SidebarPanel";
 import { Topbar } from "@/components/layout/Topbar";
 import { TabContent } from "@/components/browser/TabContent";
 import { NetworkDevTools } from "@/components/devtools/NetworkDevTools";
+import { NetworkToastOverlay } from "@/components/devtools/NetworkToastOverlay";
 import { useEffect, useState } from "react";
 
 export default function Home() {
@@ -31,6 +32,7 @@ export default function Home() {
         <Topbar />
         <TabContent />
         <NetworkDevTools />
+        <NetworkToastOverlay />
       </div>
     </div>
   );

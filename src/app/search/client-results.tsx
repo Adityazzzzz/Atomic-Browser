@@ -19,6 +19,16 @@ export default function ClientSearchResults({ query, initialResults }: { query: 
     }
   };
 
+  const handleResultClick = (e: React.MouseEvent<HTMLAnchorElement | HTMLDivElement>, url: string) => {
+    e.preventDefault();
+    if (window.parent !== window) {
+      // VibeBrowser native parent listens for this iframe event to sync Omnibox and update the proxy
+      window.parent.postMessage({ type: 'VIBE_NAVIGATE', payload: url }, '*');
+    } else {
+      window.location.href = url;
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto py-16 px-8">
       <div className="flex items-center gap-4 mb-12 pb-6 border-b border-border/40">
@@ -59,26 +69,31 @@ export default function ClientSearchResults({ query, initialResults }: { query: 
                   transition: { type: "spring", stiffness: 300, damping: 24 }
                 }
               }}
-              className="group flex flex-col p-6 rounded-3xl border border-border/20 hover:border-border/50 bg-card/20 shadow-sm hover:bg-card/50 hover:shadow-md transition-all duration-300 backdrop-blur-sm"
             >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background border border-border/50 text-[10px] font-bold text-muted-foreground uppercase overflow-hidden shrink-0">
-                  {getDomain(result.link).charAt(0)}
-                </div>
-                <span className="text-xs font-medium text-muted-foreground bg-accent/50 px-2.5 py-1 rounded-full">
-                  {getDomain(result.link)}
-                </span>
-              </div>
-              <a 
-                href={result.link} 
-                className="text-xl font-medium text-primary hover:text-primary/80 flex items-center gap-2 w-fit mb-3 transition-colors"
+              <div 
+                className="group flex flex-col p-6 rounded-3xl border border-border/20 hover:border-border/50 bg-card/20 shadow-sm hover:bg-card/50 hover:shadow-md transition-all duration-300 backdrop-blur-sm cursor-pointer"
+                onClick={(e) => handleResultClick(e, result.link)}
               >
-                {result.title}
-                <ExternalLink className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-muted-foreground" />
-              </a>
-              <p className="text-sm text-foreground/80 leading-relaxed max-w-3xl">
-                {result.snippet}
-              </p>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background border border-border/50 text-[10px] font-bold text-muted-foreground uppercase overflow-hidden shrink-0">
+                    {getDomain(result.link).charAt(0)}
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground bg-accent/50 px-2.5 py-1 rounded-full">
+                    {getDomain(result.link)}
+                  </span>
+                </div>
+                <a 
+                  href={result.link} 
+                  onClick={(e) => handleResultClick(e, result.link)}
+                  className="text-xl font-medium text-primary hover:text-primary/80 flex items-center gap-2 w-fit mb-3 transition-colors"
+                >
+                  {result.title}
+                  <ExternalLink className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-muted-foreground" />
+                </a>
+                <p className="text-sm text-foreground/80 leading-relaxed max-w-3xl">
+                  {result.snippet}
+                </p>
+              </div>
             </motion.div>
           ))}
         </motion.div>

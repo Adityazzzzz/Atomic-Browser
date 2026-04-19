@@ -5,14 +5,24 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect } from 'react';
 
-function IframeWrapper({ url, isActive }: { url: string; isActive: boolean }) {
+function IframeWrapper({ url, isActive, tabId }: { url: string; isActive: boolean, tabId: string }) {
   const [loading, setLoading] = useState(true);
+  const updateTabUrl = useTabStore(state => state.updateTabUrl);
 
-  // We rely strictly on the native DOM load event for maximum speed
-  // as artificial UX delays make the browser 'feel' heavy.
   useEffect(() => {
     setLoading(true);
   }, [url]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Must only process if this IframeWrapper is active
+      if (isActive && event.data?.type === 'VIBE_NAVIGATE' && event.data?.payload) {
+        updateTabUrl(tabId, event.data.payload);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isActive, tabId, updateTabUrl]);
 
   // Determine if it's an internal Next.js route or an external website
   const frameSrc = url.startsWith('/') 
@@ -56,6 +66,7 @@ export function TabContent() {
       {tabs.map(tab => (
         <IframeWrapper 
           key={tab.id} 
+          tabId={tab.id}
           url={tab.url} 
           isActive={tab.id === activeTabId} 
         />

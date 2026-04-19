@@ -1,6 +1,8 @@
 "use client";
 
 import { useTabStore } from '@/store/useTabStore';
+import { useProfileStore } from '@/store/useProfileStore';
+import { useNetworkStore } from '@/store/useNetworkStore';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect } from 'react';
@@ -8,6 +10,8 @@ import { useState, useEffect } from 'react';
 function IframeWrapper({ url, isActive, tabId }: { url: string; isActive: boolean, tabId: string }) {
   const [loading, setLoading] = useState(true);
   const updateTabUrl = useTabStore(state => state.updateTabUrl);
+  const addLog = useNetworkStore(state => state.addLog);
+  const { activeProfileId } = useProfileStore();
 
   useEffect(() => {
     setLoading(true);
@@ -15,19 +19,25 @@ function IframeWrapper({ url, isActive, tabId }: { url: string; isActive: boolea
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Must only process if this IframeWrapper is active
-      if (isActive && event.data?.type === 'VIBE_NAVIGATE' && event.data?.payload) {
-        updateTabUrl(tabId, event.data.payload);
+      // Avoid cross-talk between inactive components tracking global messages
+      if (!isActive) return;
+
+      const data = event.data;
+      if (data?.type === 'VIBE_NAVIGATE' && data?.payload) {
+        updateTabUrl(tabId, data.payload);
+      }
+      if (data?.type === 'VIBE_NETWORK_LOG' && data?.payload) {
+        addLog(data.payload);
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isActive, tabId, updateTabUrl]);
+  }, [isActive, tabId, updateTabUrl, addLog]);
 
   // Determine if it's an internal Next.js route or an external website
   const frameSrc = url.startsWith('/') 
     ? url 
-    : `/api/proxy?url=${encodeURIComponent(url)}`;
+    : `/api/proxy?url=${encodeURIComponent(url)}&profileId=${encodeURIComponent(activeProfileId)}`;
 
   return (
     <div className={cn(

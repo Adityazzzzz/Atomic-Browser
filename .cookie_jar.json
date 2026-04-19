@@ -1,0 +1,31 @@
+{
+  "default": {
+    "en.wikipedia.org": [
+      "WMF-Last-Access=19-Apr-2026",
+      "WMF-Last-Access-Global=19-Apr-2026",
+      "GeoIP=IN:MP:Bhopal:23.25:77.41:v4",
+      "NetworkProbeLimit=0.001",
+      "WMF-Uniq=4wZQ1HSkmNRD64Cq00U4GwNHAAEBAFvdfQ9fbwt44GoJUVCsn-yfTOm7TpnAkOf7",
+      "WMF-DP=206,2d6"
+    ],
+    "github.com": [
+      "_gh_sess=pDIoI84KZ5OfZ0pPr7zK6Bjqxl8wLELXnhmtioHLcb1jJGGg1%2BOYWGuMemi%2F0qwVs%2BeFetl6vtXhe5Thiz2rvPRFMHdjyUompWTJ0%2FwNb0wQjxGVg9cezWDFuEBBnZSDWvSxQKozzCUcqdm7DLRY4VVufNqwxNoBVmMakoPQDd4gkhELaWkHlTmC8DKXQAjb9TFZb%2FfGFAYi4dilOV%2FuwgZ3INLiKwqOCL0vfSDdvk8ctjDbnT%2FSamK45fnCRvbkSxPovzDR%2B%2BuWusxnHwkcOQ%3D%3D--TlJKuEt2QP9Lg%2BNK--aRt1lGUksTC0Ulp1NRkVRQ%3D%3D",
+      "_octo=GH1.1.626029557.1776607889",
+      "logged_in=no"
+    ]
+  },
+  "0czdh": {
+    "github.com": [
+      "_gh_sess=KP4kedNa2V9lZuR1iNbYQeY5vy4dJ1kJ1veS500VqPmIjC2GYWFiqUVEFRmEWucEllXwFxKi9W8Z5%2FPm2V247sAbCMQt87VPBACVvU1eFcLzxqa0Hh7vbyudmKxBI1SlbZFceL8ubhdvbfSTMUU6vjsabevjjN5vzAL1VtlYs6%2BEvGAtfwk8FXwv2jXOSc3hrgpZsH%2BaphawJeOMSlPYbiH4zn%2FkkO6ZDijt6iQ06I4ZcVSL8o4LQNm6l5iayAdbmaU2K1yH142oxNU%2FFJ9BtA%3D%3D--e1cIUU3D8SiR0rOm--m3htCpFcCQKFbm59Nt3zXg%3D%3D",
+      "_octo=GH1.1.122787080.1776607884",
+      "logged_in=no"
+    ]
+  },
+  "oea43a": {
+    "github.com": [
+      "_gh_sess=et%2FNCwIOdKkZu5OUhbe3DKqPecGLPmt8Q%2B83fyEgFr0uzC%2Fg6%2BKe%2BwLYECuzJOlGsTrOJfLUnJQTH3pgZKdA%2Fcj%2BjsQuSX67Z29zT8YiI5mpiZ3OL%2B1SnC6hYN9WrnFxPEbEH%2FU9iSZ9rxoH5sGk%2F%2Bzn7KsFMF0zNwwjKNv2XNbOv8U1BUTCXtEVQHbmMqgFID4U23k7Xz%2F3X3lqCX54J7oXSgOJmjrDVQQURZxGrWaHKVrnPUKMtIFnXOmmmUohWkVZyvvTHQSzEPhvEUWp6A%3D%3D--qc2MLjvgN4QSKqUG--j7q6rAYRBET7aR8679dMbA%3D%3D",
+      "_octo=GH1.1.771670787.1776607886",
+      "logged_in=no"
+    ]
+  }
+}

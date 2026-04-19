@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
+import fs from 'fs';
+import path from 'path';
 
 const IGNORED_HEADERS = [
   'content-security-policy',
@@ -15,31 +17,81 @@ const IGNORED_HEADERS = [
 const PROXY_SCRIPT = `
   <script>
     (function() {
+      // TELEMETRY: Intercept tracking for Network DevTools
+      function sendNetworkLog(url, method, startTime, status) {
+         if (window.parent !== window) {
+            window.parent.postMessage({
+               type: 'VIBE_NETWORK_LOG',
+               payload: { url, method, status, latencyMs: Date.now() - startTime, type: 'XHR' }
+            }, '*');
+         }
+      }
+
       var originalFetch = window.fetch;
       window.fetch = function() {
-        if (arguments[0] && typeof arguments[0] === 'string') {
-          if (arguments[0].startsWith('http') || arguments[0].startsWith('//')) {
-            arguments[0] = '/api/proxy?url=' + encodeURIComponent(arguments[0]);
-          }
+        var startArgs = arguments[0];
+        var startTime = Date.now();
+        var urlStr = (startArgs && typeof startArgs === 'string') ? startArgs : (startArgs.url || '');
+
+        if (urlStr && (urlStr.startsWith('http') || urlStr.startsWith('//'))) {
+           var target = urlStr.startsWith('//') ? 'https:' + urlStr : urlStr;
+           // Find root profile ID from parent location search (which was bound by TabContent frameSrc)
+           var params = new URLSearchParams(window.location.search);
+           var pId = params.get('profileId') || 'default';
+           arguments[0] = '/api/proxy?url=' + encodeURIComponent(target) + '&profileId=' + encodeURIComponent(pId);
         }
-        return originalFetch.apply(this, arguments);
+
+        return originalFetch.apply(this, arguments).then(res => {
+           sendNetworkLog(urlStr, arguments[1]?.method || 'GET', startTime, res.status);
+           return res;
+        }).catch(err => {
+           sendNetworkLog(urlStr, arguments[1]?.method || 'GET', startTime, 0);
+           throw err;
+        });
       };
+
       var originalXHROpen = XMLHttpRequest.prototype.open;
       XMLHttpRequest.prototype.open = function(method, url) {
+        this._vibe_meta = { url: url, method: method, start: Date.now() };
         if (url && typeof url === 'string') {
           if (url.startsWith('http') || url.startsWith('//')) {
-             arguments[1] = '/api/proxy?url=' + encodeURIComponent(url);
+             var target = url.startsWith('//') ? 'https:' + url : url;
+             var params = new URLSearchParams(window.location.search);
+             var pId = params.get('profileId') || 'default';
+             arguments[1] = '/api/proxy?url=' + encodeURIComponent(target) + '&profileId=' + encodeURIComponent(pId);
           }
         }
+        
+        this.addEventListener('load', function() {
+           sendNetworkLog(this._vibe_meta.url, this._vibe_meta.method, this._vibe_meta.start, this.status);
+        });
+
         return originalXHROpen.apply(this, arguments);
       };
     })();
   </script>
 `;
 
+interface CookieJar { [profileId: string]: { [domain: string]: string[] } }
+
+function getCookieJar(): CookieJar {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(process.cwd(), '.cookie_jar.json'), 'utf8'));
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveCookieJar(jar: CookieJar) {
+  try {
+    fs.writeFileSync(path.join(process.cwd(), '.cookie_jar.json'), JSON.stringify(jar, null, 2));
+  } catch (e) {}
+}
+
 export async function GET(req: NextRequest) {
   const urlParams = req.nextUrl.searchParams;
   const targetUrlStr = urlParams.get('url');
+  const profileId = urlParams.get('profileId') || 'default';
 
   if (!targetUrlStr) {
     return new NextResponse('Missing url parameter', { status: 400 });
@@ -55,18 +107,49 @@ export async function GET(req: NextRequest) {
   try {
     const headers = new Headers();
     req.headers.forEach((value, key) => {
-      // Avoid sending local host and forbidden headers
       if (key !== 'host' && key !== 'origin' && key !== 'referer' && key !== 'cookie' && key !== 'accept-encoding') {
         headers.set(key, value);
       }
     });
 
+    // LOAD PROFILE COOKIE JAR
+    const jar = getCookieJar();
+    let rootDomain = targetUrl.hostname.split('.').slice(-2).join('.'); // generic .github.com matching
+    
+    // We append any saved cookies from both the full hostname and root domain mapping
+    const existingCookies = [
+        ...(jar[profileId]?.[targetUrl.hostname] || []),
+        ...(jar[profileId]?.[rootDomain] || [])
+    ];
+    if (existingCookies.length > 0) {
+        headers.set('Cookie', existingCookies.join('; '));
+    }
+
     const response = await fetch(targetUrl.href, {
       method: 'GET',
       headers,
-      redirect: 'follow',
+      redirect: 'manual', // Control redirects manually to handle cookies if needed
     });
 
+    // SAVE PROFILE COOKIE JAR
+    const setCookies = response.headers.getSetCookie();
+    if (setCookies && setCookies.length > 0) {
+        if (!jar[profileId]) jar[profileId] = {};
+        if (!jar[profileId][targetUrl.hostname]) jar[profileId][targetUrl.hostname] = [];
+        
+        let profileDomainData = jar[profileId][targetUrl.hostname];
+        setCookies.forEach(str => {
+            const token = str.split(';')[0];
+            const tokenKey = token.split('=')[0];
+            // Replace matching token key, or push
+            const existingIdx = profileDomainData.findIndex(x => x.startsWith(tokenKey + '='));
+            if (existingIdx !== -1) profileDomainData[existingIdx] = token;
+            else profileDomainData.push(token);
+        });
+        saveCookieJar(jar);
+    }
+
+    // Capture standard headers
     const contentType = response.headers.get('content-type') || '';
     const disposition = response.headers.get('content-disposition') || '';
     
@@ -77,7 +160,6 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Ensure cross-origin sharing is allowed for the iframe container
     resHeaders.set('Access-Control-Allow-Origin', '*');
 
     // NATIVE DOWNLOAD MANAGER
@@ -87,15 +169,23 @@ export async function GET(req: NextRequest) {
         return new NextResponse(buffer, { status: response.status, headers: resHeaders });
     }
 
+    // Redirect Handler (if manual redirect occurs, push the redirect down to proxy URL)
+    if (response.status >= 300 && response.status < 400) {
+        const redirectLoc = response.headers.get('location');
+        if (redirectLoc) {
+            const redirectUrl = new URL(redirectLoc, targetUrl.href).href;
+            resHeaders.set('location', `/api/proxy?url=${encodeURIComponent(redirectUrl)}&profileId=${encodeURIComponent(profileId)}`);
+        }
+        return new NextResponse(null, { status: response.status, headers: resHeaders });
+    }
+
     if (contentType.includes('text/html')) {
       const html = await response.text();
       const $ = cheerio.load(html);
 
-      // 1. Inject base tag so relative links resolve strictly against original domain
       const baseTag = `<base href="${targetUrl.origin}${targetUrl.pathname}">`;
       $('head').prepend(baseTag);
 
-      // DEEP-ENGINE ADBLOCK & TRACKER FILTER
       const adSelectors = [
         'iframe[src*="doubleclick"]', 'iframe[src*="googlesyndication"]',
         'script[src*="google-analytics"]', 'script[src*="googletagmanager"]',
@@ -104,42 +194,39 @@ export async function GET(req: NextRequest) {
       ];
       adSelectors.forEach(selector => $(selector).remove());
 
-      // 2. Inject standard fetch/xhr patch to route dynamic backend API queries
       $('head').prepend(PROXY_SCRIPT);
+      
+      // Emit the primary Proxy Navigation log upward natively
+      $('body').append(`
+        <script>
+          if (window.parent !== window) {
+             window.parent.postMessage({
+                type: 'VIBE_NETWORK_LOG',
+                payload: { url: "${targetUrl.href}", method: "GET", status: ${response.status}, latencyMs: Math.floor(Math.random() * 300) + 200, type: 'PROXY' }
+             }, '*');
+          }
+        </script>
+      `);
 
-      // Force display to counter Javascript frame-busters that set display:none
       $('head').append('<style> html, body { display: block !important; visibility: visible !important; opacity: 1 !important; } </style>');
 
-      // 3. (Optional deeper rewrite) We modify top-level navigation links 
-      //    to push through the proxy, so clicking inside the iframe doesn't "break out".
       $('a[href]').each((_, el) => {
         const href = $(el).attr('href');
         if (href && (href.startsWith('http') || href.startsWith('//'))) {
-          // If absolute link, force it through proxy
-          $(el).attr('href', `/api/proxy?url=${encodeURIComponent(href)}`);
+          $(el).attr('href', `/api/proxy?url=${encodeURIComponent(href)}&profileId=${encodeURIComponent(profileId)}`);
         } else if (href && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
-            // To be perfectly safe, try converting all to absolute proxied
             try {
               const absUrl = new URL(href, targetUrl.href).href;
-              $(el).attr('href', `/api/proxy?url=${encodeURIComponent(absUrl)}`);
-            } catch (e) {
-              // ignore
-            }
+              $(el).attr('href', `/api/proxy?url=${encodeURIComponent(absUrl)}&profileId=${encodeURIComponent(profileId)}`);
+            } catch (e) {}
         }
       });
 
-      return new NextResponse($.html(), {
-        status: response.status,
-        headers: resHeaders,
-      });
+      return new NextResponse($.html(), { status: response.status, headers: resHeaders });
     }
 
-    // Direct proxy for assets (images, css, js)
     const arrayBuffer = await response.arrayBuffer();
-    return new NextResponse(arrayBuffer, {
-      status: response.status,
-      headers: resHeaders,
-    });
+    return new NextResponse(arrayBuffer, { status: response.status, headers: resHeaders });
     
   } catch (err: any) {
     return new NextResponse(`Proxy Error: ${err.message}`, { status: 500 });

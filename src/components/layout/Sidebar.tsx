@@ -1,16 +1,23 @@
 "use client";
 
-import { BookmarkIcon, HistoryIcon, SettingsIcon } from "lucide-react";
+import { BookmarkIcon, HistoryIcon, SettingsIcon, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useUIStore } from "@/store/useUIStore";
+import { ProfileSwitcher } from "@/components/layout/ProfileSwitcher";
+import { useNetworkStore } from "@/store/useNetworkStore";
 
 export function Sidebar() {
   const router = useRouter();
   const { toggleSidebarPanel, activeSidebarPanel } = useUIStore();
+  const toggleDevTools = useNetworkStore(state => state.toggleDevTools);
 
   return (
     <div className="w-14 h-full border-r bg-background/50 backdrop-blur-md flex flex-col items-center py-4 space-y-4 shadow-[1px_0_10px_rgba(0,0,0,0.1)] z-10 block shrink-0">
+      <ProfileSwitcher />
+      
+      <div className="w-8 h-[1px] bg-border/40 my-2" />
+
       <Button 
         variant="ghost" 
         size="icon" 
@@ -28,6 +35,15 @@ export function Sidebar() {
         <HistoryIcon className="w-5 h-5" />
       </Button>
       <div className="flex-1" />
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        title="Network DevTools"
+        onClick={toggleDevTools}
+        className="w-10 h-10 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground relative"
+      >
+        <Activity className="w-5 h-5" />
+      </Button>
       <Button 
         variant="ghost" 
         size="icon" 

@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { SidebarPanel } from "@/components/layout/SidebarPanel";
 import { Topbar } from "@/components/layout/Topbar";
 import { TabContent } from "@/components/browser/TabContent";
+import { NetworkDevTools } from "@/components/devtools/NetworkDevTools";
 import { useEffect, useState } from "react";
 
 export default function Home() {
@@ -29,6 +30,7 @@ export default function Home() {
       <div className="flex flex-col flex-1 w-full h-full overflow-hidden relative">
         <Topbar />
         <TabContent />
+        <NetworkDevTools />
       </div>
     </div>
   );
